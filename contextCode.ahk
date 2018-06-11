@@ -10,7 +10,6 @@
 ;  1.判断当前是否是可输入界面
 ;  2./和对应的全角、输入效果一致，目前未找到解决方法
 ;  3.对于无法匹配情况，弹出下拉选项框由用户主动选择
-;  4.编写代码时，/**/是比较常见的注释形式，但也会被此脚本检测到，考虑是否使用其他符号代替
 ;========================= 环境配置 =========================
 #Persistent
 #NoEnv
@@ -23,6 +22,7 @@ StringCaseSense, off
 CoordMode, Menu
 #Include <JSON> 
 #Include <PRINT>
+#Include <TIP>
 #Include <DBA>
 ;========================= 环境配置 =========================
 
@@ -58,43 +58,47 @@ LoadLangCodes()
 
 ;========================= 输入命令检测 =========================
 ~/::
-Input, userInput, V T10, /,
-userInput := RegExReplace(Trim(userInput), "\s+", " ")      ;去除首位空格, 将字符串内多个连续空格替换为单个空格
-if (!userInput)
-    return
+    Input, userInput, V T10, /,
+    userInput := RegExReplace(Trim(userInput), "\s+", " ")      ;去除首位空格, 将字符串内多个连续空格替换为单个空格
+    if (!userInput)
+        return
 
-;根据当前窗口title、编辑文件后缀、进程、ahk_id，判断当前所处的语言环境，提供更好的代码帮助
-WinGet, curProcessName, ProcessName, A
-WinGet, curId, ID, A
-WinGetTitle, curTitle, ahk_id %curId%
+    ;根据当前窗口title、编辑文件后缀、进程、ahk_id，判断当前所处的语言环境，提供更好的代码帮助
+    WinGet, curProcessName, ProcessName, A
+    WinGet, curId, ID, A
+    WinGetTitle, curTitle, ahk_id %curId%
 
-
-maybeLang := SubStr(userInput, 1, 4)
-if (maybeLang == "lang") {
-    SettingLangCmd(userInput)
-    return
-}
-ParseUserInput()             ;语言环境设置
-MatchCode()                  ;匹配code
-CalcCodeIndent()             ;计算行缩进空格
-ParseCodeLineCmd()           ;代码片段光标\行内参数处理
-SimulateSendKey()            ;模拟按键
+    if (SubStr(userInput, 1, 4) == "lang") {
+        ParseLangCmd()
+    } else {
+        ParseUserInput()             ;语言环境设置
+        if (!MatchCode())            ;匹配code
+            return
+        CalcCodeIndent()             ;计算行缩进空格
+        ParseCodeLineCmd()           ;代码片段光标\行内参数处理
+        SimulateSendKey()            ;模拟按键
+    }
 return
 ;========================= 输入命令检测 =========================
 
 
 
 ;========================= 构建界面-主 =========================
-Gui:
-    global LangNameLVHwnd :=
-    global CodeNameLVHwnd :=
-    global CodeNameEdit :=
-    global CodeDescEdit :=
-    global CodeContentEdit :=
-    global CodeContentEdit :=
-    global GuiSaveButton :=
-    global CodeOperateType :=
-    Gui, Gui:Destroy
+global LangNameLVHwnd :=
+global CodeNameLVHwnd :=
+global LangNameLV :=
+global CodeNameLV :=
+global CodeNameEdit :=
+global CodeDescEdit :=
+global CodeContentEdit :=
+global CodeContentEdit :=
+global GuiSaveButton :=
+global CodeOperateType :=
+global GuiSelectLangId :=
+global GuiSelectLangName :=
+global GuiSelectCodeId :=
+global GuiSelectCodeName :=
+Gui(ItemName, ItemPos, MenuName){
     Gui, Gui:New
     Gui, Gui:Font, s10, Microsoft YaHei
     Gui, Gui:Add, ListView, w200 r26 Readonly AltSubmit cFFFFFF Background142F43 HScroll -Hdr -Multi HwndLangNameLVHwnd vLangNameLV gGuiLangNameLVHandler, id|name
@@ -110,12 +114,12 @@ Gui:
     Gui, Gui:Add, Edit, w380 x+0 vCodeDescEdit
     Gui, Gui:Add, Text, x+-420 y+15, 代码：
     Gui, Gui:Add, Edit, w380 r22 x+0 vCodeContentEdit
-	Gui, Gui:Add, Button, w50 Hidden gGuiSaveButtonHandler vGuiSaveButton, 保存
+	Gui, Gui:Add, Button, w50 Hidden vGuiSaveButton gGuiSaveButtonHandler, 保存
     Gui, Gui:Add, StatusBar
     Gui, Gui:Show, , 代码片段管理
     SB_SetParts(11, 200, 200)
     FillLangName()
-return
+}
 GuiGuiContextMenu(GuiHwnd, CtrlHwnd, EventInfo, IsRightClick, X, Y) {
     if (CtrlHwnd == LangNameLVHwnd) {
         Gui, Gui:Default
@@ -154,6 +158,8 @@ GuiLangNameLVHandler(CtrlHwnd, GuiEvent, EventInfo) {
         GuiControl,, CodeNameEdit
         GuiControl,, CodeDescEdit
         GuiControl,, CodeContentEdit
+        GuiSelectLangId := langId
+        GuiSelectLangName := langName
 	}
 }
 GuiCodeNameLVHandler(CtrlHwnd, GuiEvent, EventInfo) {
@@ -169,6 +175,9 @@ GuiCodeNameLVHandler(CtrlHwnd, GuiEvent, EventInfo) {
         GuiControl,, CodeContentEdit, % code.content
         GuiControl, Hide, GuiSaveButton
         CodeOperateType := "read"
+        GuiSelectCodeId := codeId
+        GuiSelectCodeName := code.name
+        SB_SetText("  查看 " GuiSelectLangName "->" GuiSelectCodeName, 4)
 	}
 }
 GuiSaveButtonHandler(CtrlHwnd, GuiEvent, EventInfo) {
@@ -202,7 +211,14 @@ GuiSaveButtonHandler(CtrlHwnd, GuiEvent, EventInfo) {
         if (!rowNum)
             return
         LV_GetText(codeId, rowNum, 1)
-        DBCodeUpdate(codeId, CodeNameEdit, CodeDescEdit, CodeContentEdit)
+        codeObj := Object()
+        codeObj.name := CodeNameEdit
+        codeObj.desc := CodeDescEdit
+        codeObj.content := CodeContentEdit
+        codeObj.id := codeId
+        if (!DBCodeUpdate(codeObj)) {
+            MsgBox, 修改失败！
+        }
         LV_Modify(rowNum, "", , CodeNameEdit)
     }
     GuiControl, Hide, GuiSaveButton
@@ -211,8 +227,8 @@ GuiSaveButtonHandler(CtrlHwnd, GuiEvent, EventInfo) {
 
 
 ;========================= 构建界面-新建语言 =========================
-GuiNewLang:
-    global CodeNewLangEdit :=
+global CodeNewLangEdit :=
+GuiNewLang() {
     Gui, CodeNewLangGui:New
 	Gui, CodeNewLangGui:Margin, 20, 20
 	Gui, CodeNewLangGui:Font, s10, Microsoft YaHei
@@ -221,7 +237,7 @@ GuiNewLang:
 	Gui, CodeNewLangGui:Add, Button, Default xm+80 y+15 w50 gGuiNewLangSave, 确定
 	Gui, CodeNewLangGui:Add, Button, x+20 w50 gGuiNewLangCancel, 取消
 	Gui, CodeNewLangGui:Show, ,添加新语言
-return
+}
 GuiNewLangSave(CtrlHwnd, GuiEvent, EventInfo) {
     Gui, CodeNewLangGui:Default
     Gui, CodeNewLangGui:Submit, NoHide
@@ -272,6 +288,13 @@ MenuTray() {
     Menu, CodeNameMenu, Add, 删除, CodeNameMenuHandler
     Menu, CodeNameMenu, Icon, 删除, SHELL32.dll, 132
 }
+MenuTrayReload(ItemName, ItemPos, MenuName) {
+    Reload    
+}
+MenuTrayExit(ItemName, ItemPos, MenuName) {
+    currentDB.Close()
+    ExitApp
+}
 LangNameMenuHandler(ItemName, ItemPos, MenuName) {
     if (ItemName == "刷新") {
         Gui, Gui:Default
@@ -281,7 +304,7 @@ LangNameMenuHandler(ItemName, ItemPos, MenuName) {
         LV_Delete()
         FillLangName()
     } else if (ItemName == "新增") {
-        gosub, GuiNewLang
+        GuiNewLang()
     } else if (ItemName == "删除") {
         Gui, Gui:Default
         Gui, ListView, LangNameLV
@@ -326,10 +349,12 @@ CodeNameMenuHandler(ItemName, ItemPos, MenuName) {
         GuiControl, Show, GuiSaveButton
         GuiControl, Focus, CodeNameEdit
         CodeOperateType := "add"
+        SB_SetText("  新增 " GuiSelectLangName "->?", 4)
     } else if (ItemName == "修改") {
         GuiControl, Show, GuiSaveButton
         GuiControl, Focus, CodeNameEdit
         CodeOperateType := "edit"
+        SB_SetText("  修改 " GuiSelectLangName "->" GuiSelectCodeName, 4)
     } else if (ItemName == "删除") {
         Gui, ListView, CodeNameLV
         rowNum := LV_GetNext(0, "Focused")
@@ -345,25 +370,11 @@ CodeNameMenuHandler(ItemName, ItemPos, MenuName) {
             GuiControl,, CodeNameEdit
             GuiControl,, CodeDescEdit
             GuiControl,, CodeContentEdit
+            SB_SetText("  ", 4)
         }
     }
 }
 ;========================= 构建界面-菜单 =========================
-
-
-
-
-
-
-;========================= 公共标签 =========================
-MenuTrayReload:
-    Reload
-return
-MenuTrayExit:
-    currentDB.Close()
-    ExitApp
-return
-;========================= 公共标签 =========================
 
 
 
@@ -384,7 +395,7 @@ LoadLangCodes() {
         langCodesFull[lang.name] := oneLangCodes
     }
 }
-SettingLangCmd(userInput) {
+ParseLangCmd() {
     userInputArray := StrSplit(userInput, A_Space)
     userInputCmd := userInputArray[2]
     if (userInputCmd) {
@@ -464,7 +475,6 @@ MatchCode() {
         searchCodeObj := singleLangCodes[searchKey]
         if (searchCodeObj) {
             snippetMatchFlag := true
-            snippetPath := value
             snippetMatchLang := searchLang
             searchCode := searchCodeObj["content"]
         }
@@ -475,7 +485,6 @@ MatchCode() {
         searchCodeObj := commonSingleLangCodes[searchKey]
         if (searchCodeObj) {
             snippetMatchFlag := true
-            snippetPath := value
             snippetMatchLang = common
             searchCode := searchCodeObj["content"]
         }
@@ -489,7 +498,6 @@ MatchCode() {
             searchCodeObj := singleLangSnippets[searchKey]
             if (searchCodeObj) {
                 snippetMatchFlag := true
-                snippetPath := value
                 snippetMatchLang := element
                 searchCode := searchCodeObj["content"]
                 break
@@ -499,8 +507,9 @@ MatchCode() {
     ;所有分类中都未匹配成功
     if (snippetMatchFlag == false) {
         tip("没有匹配的代码片段 !")
-        return
+        return false
     }
+    return true
 }
 CalcCodeIndent() {
     ;获取当前编辑器所在行文本，计算前缀空格\TAB数量，为code中的每行增加对应的空格前缀
@@ -664,6 +673,9 @@ GuessLang(curProcessName, curTitle) {
     } else if (curProcessName == "mintty.exe") {
         searchLang = git
         searchLangMode = auto
+    } else if (curProcessName == "chrome.exe") {
+        searchLang = js
+        searchLangMode = auto
     } else {
         FoundPos := RegExMatch(curTitle, "U)\..* ", postfix)
         StringReplace, postfix, postfix, %A_Space%, , All
@@ -721,14 +733,6 @@ FillCodeName(langId, langName) {
     SB_SetText(langName "下共计" codes.Length() "种片段", 3)
 }
 
-Tip(msg) {
-	ToolTip, %msg%, %A_CaretX%,  %A_CaretY%
-    SetTimer, TipRemove, 2000
-}
-TipRemove:
-    SetTimer, TipRemove, Off
-    ToolTip
-return
 ;========================= 公共函数 =========================
 
 
@@ -761,8 +765,9 @@ DBCodeNew(codeObj) {
     currentDB.Insert(codeObj, "code")
     return codeId
 }
-DBCodeUpdate(codeId, name, desc, content) {
-    currentDB.Query("update code set name = '" name "', desc = '" desc "', content = '" content "' where id = " codeId)
+DBCodeUpdate(codeObj) {
+    flag := currentDB.Update(codeObj, "code")
+    return flag
 }
 DBCodeFind(langId) {
     return Query("select id, name, content from code where langId = " langId)

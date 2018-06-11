@@ -1,4 +1,5 @@
 ﻿; namespace DBA
+#Include <PRINT>
 
 class SQLite
 {
@@ -166,7 +167,7 @@ class DataBaseSQLLite extends DBA.DataBase
 		{
 			if (columns.HasKey(row.name)){
 				;MsgBox,0,Error,  % "row name found: " row.name "`nTypes: " row.type  ; #DEBUG
-				types[columns[row.name]] := row.types
+				types[columns[row.name]] := row.type
 			}
 		}
 		
@@ -219,6 +220,57 @@ class DataBaseSQLLite extends DBA.DataBase
 		col := new Collection()
 		col.Add(record)
 		return this.InsertMany(col, tableName)
+	}
+
+	
+	Update(record, tableName){
+		if(!record || !record.id)
+			return false
+		
+		recordId := record.id
+		colString := ""
+		columns := {}
+		
+		columnIndex := 1
+		for column, value in record {
+			if (column == "id")
+				continue
+			colString .= "," this.QuoteIdentifier(column) "=?"
+			columns[column] := columnIndex
+			columnIndex ++
+		}
+		columns["id"] := columnIndex
+		sql := "UPDATE " this.QuoteIdentifier(tableName) " SET " SubStr(colstring, 2) " WHERE `id`=?"
+
+		types := []
+		for i,row in this._GetTableObj("PRAGMA table_info(" this.QuoteIdentifier(tableName) ")").Rows {
+			if (columns.HasKey(row.name))
+				types[columns[row.name]] := row.type
+		}
+
+		query := SQLite_Query(this._handleDB, sql) ;prepare the query
+		if ErrorLevel
+			msgbox % ErrorLevel
+			
+		try {
+			for col, val in record {
+				if (!columns.HasKey(col))
+					throw Exception("Irregular params: Column not found: [" col "] in`nTable Columns:" this.printKeys(columns))
+				fieldType := "auto"
+				if (types.HasKey(columns[col]))
+					fieldType := types[columns[col]]
+				
+				print(columns[col] " " val " " fieldType)
+				ret := SQLite_bind(query, columns[col], val, fieldType)
+			}
+			SQLite_Step(query)
+			SQLite_Reset(query)
+
+		} catch e {
+			throw Exception("InsertMany failed.`n`nChild Exception:`n" e.What " `n" e.Message, -1)
+		}
+		SQLite_QueryFinalize(query)
+		return True
 	}
 	
 	/*
