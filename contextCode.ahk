@@ -5,7 +5,6 @@
 ;  2.needBackClip是否需要备份剪切板
 ;注意
 ;  1.console界面会将换行符表示成执行命令, 因此一般用于console中执行的代码片段最好是一行
-;  2.自动判断书写命令窗口与粘贴窗口是否一致，变化时提示
 ;TODO
 ;  1.判断当前是否是可输入界面
 ;  2./和对应的全角、输入效果一致，目前未找到解决方法
@@ -550,79 +549,68 @@ ParseCodeLineCmd() {
     ;  }
     ;注意
     ;  console界面中, 换行符会被当成执行命令, 对于多行代码片段无法准确定位到$pos$位置(除非是代码最后一行)
-    codeLineMax := codeVar := codeLine := codeLinePosIndex := codeLinePosIndex2 := codeNeedUpKeyCount := codeNeedRightKeyCount := codeNeedLeftKeyCount :=
+    codeLineMax := codeVar := codeLine := codeLinePosIndex := codeLinePosIndex2 := codeNeedUpKeyCount := codeNeedRightKeyCount := codeNeedLeftKeyCount := ""
     Loop, parse, searchCode, `r`n
         codeLineMax := A_Index
     if (!codeLineMax) {
         tip("代码片段文件存在, 但内容为空 !")
         return
     }
-    
     Loop, parse, searchCode, `r`n
     {
         codeLine := A_LoopField
-        IfInString, codeLine, $datetime$
-        {
+        if (InStr(codeLine, "$datetime$", true)) {
             FormatTime, datetime, , yyyy-MM-dd HH:mm:ss
-            StringReplace, codeLine, codeLine, $datetime$, %datetime%, All
+            codeLine := StrReplace(codeLine, "$datetime$", datetime)
         }
-        IfInString, codeLine, $clip$
-        {
-            StringReplace, codeLine, codeLine, $clip$, %Clipboard%, All
+        if (InStr(codeLine, "$clip$", true)) {
+            codeLine := StrReplace(codeLine, "$clip$", Clipboard)
         }
-        IfInString, codeLine, $face$
-        {
+        if (InStr(codeLine, "$face$", true)) {
             face := GetFace()
-            StringReplace, codeLine, codeLine, $face$, %face%, All
+            codeLine := StrReplace(codeLine, "$face$", face)
         }
-        IfInString, codeLine, $weather$
-        {
+        if (InStr(codeLine, "$weather$", true)) {
             weather := GetWeather()
-            StringReplace, codeLine, codeLine, $weather$, %weather%, All
+            codeLine := StrReplace(codeLine, "$weather$", weather)
         }
-        IfInString, codeLine, $param$
-        {
+        if (InStr(codeLine, "$param$", true)) {
             if (searchParam)
-                StringReplace, codeLine, codeLine, $param$, %searchParam%, All
+                codeLine := StrReplace(codeLine, "$param$", searchParam)
             else
-                StringReplace, codeLine, codeLine, $param$, , All
+                codeLine := StrReplace(codeLine, "$param$")
         }
-        IfInString, codeLine, $pos$
-        {
+        if (InStr(codeLine, "$pos$", true)) {
             if (codeEditorIsConsole && A_Index == codeLineMax) {
-                StringGetPos, codeLinePosIndex2, codeLine, $pos$, R1
-                StringReplace, codeLine, codeLine, $pos$
-                StringLen, codeLineLen, codeLine
-                codeNeedLeftKeyCount := codeLineLen - codeLinePosIndex2 + 1
+                codeLinePosIndex2 := InStr(codeLine, "$pos$", true,  0)
+                codeLine := StrReplace(codeLine, "$pos$")
+                codeNeedLeftKeyCount := StrLen(codeLine) - codeLinePosIndex2 + 2  ;console代码片段最后会自动添加空格, 因此需加2
             } else {
                 codeLinePosIndex := A_Index
-                StringGetPos, codeLinePosIndex2, codeLine, $pos$, L1
-                codeLinePosIndex2 += %codePrefixBlankLen%
-                StringReplace, codeLine, codeLine, $pos$
+                codeLinePosIndex2 := InStr(codeLine, "$pos$", true) + codePrefixBlankLen
+                codeLine := StrReplace(codeLine, "$pos$")
             }
         }
-        
         ;行位符号
         if (codeEditorIsConsole) {
             if (A_Index == codeLineMax)
-                codeVar = %codeVar%%codePrefixBlankStr%%codeLine%
+                codeVar := codeVar codePrefixBlankStr codeLine
             else
-                codeVar = %codeVar%%codePrefixBlankStr%%codeLine%`r
+                codeVar := codeVar codePrefixBlankStr codeLine "`r"
         } else {
-            codeVar = %codeVar%%codePrefixBlankStr%%codeLine%`r`n
+            codeVar := codeVar codePrefixBlankStr codeLine "`r`n"
         }
     }
     if (codeLinePosIndex) {
         codeNeedUpKeyCount := codeLineMax - codeLinePosIndex + 1
-        codeNeedRightKeyCount := codeLinePosIndex2
+        codeNeedRightKeyCount := codeLinePosIndex2 - 1
     }
 }
 
 SimulateSendKey() {
-    StringLen, codeNeedBackKeyCount, userInput
-    codeNeedBackKeyCount += 2   ;//符号也需要计算在退格值内，自加2
+    codeNeedBackKeyCount := StrLen(userInput) + 2    ;//符号也需要计算在退格值内，自加2
     if (needBackClip)
-        savedClip := ClipboardAll ; 备份剪贴板数据
+        savedClip := ClipboardAll   ;备份剪贴板数据
 
     WinGet, curId2, ID, A
     isWinChanged := (curId == curId2 ? false : true)    ;窗口发生变法时，在新窗口中不需要退格处理
