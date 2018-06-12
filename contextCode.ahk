@@ -153,7 +153,7 @@ GuiLangNameLVHandler(CtrlHwnd, GuiEvent, EventInfo) {
         Gui, ListView, LangNameLV
         LV_GetText(langId, EventInfo, 1)
         LV_GetText(langName, EventInfo, 2)
-        FillCodeName(langId, langName)
+        FillCodeName(langId, langName, "name")
         GuiControl,, CodeNameEdit
         GuiControl,, CodeDescEdit
         GuiControl,, CodeContentEdit
@@ -277,10 +277,16 @@ MenuTray() {
     Menu, LangNameMenu, Add, 删除, LangNameMenuHandler
     Menu, LangNameMenu, Icon, 删除, SHELL32.dll, 132
     
+    
     Menu, CodeNameMenu, Add, 刷新, CodeNameMenuHandler
     Menu, CodeNameMenu, Icon, 刷新, SHELL32.dll, 239
     Menu, CodeNameMenu, Add, 新增, CodeNameMenuHandler
     Menu, CodeNameMenu, Icon, 新增, SHELL32.dll, 1
+    Menu, CodeNameMenuSub, Add, 名称, CodeNameMenuHandler, :CodeNameMenu
+    Menu, CodeNameMenuSub, Add, 名称(降序), CodeNameMenuHandler, :CodeNameMenu
+    Menu, CodeNameMenuSub, Add, 时间, CodeNameMenuHandler, :CodeNameMenu
+    Menu, CodeNameMenuSub, Add, 时间(降序), CodeNameMenuHandler, :CodeNameMenu
+    Menu, CodeNameMenu, Add, 排序, :CodeNameMenuSub
     Menu, CodeNameMenu, Add
     Menu, CodeNameMenu, Add, 修改, CodeNameMenuHandler
     Menu, CodeNameMenu, Icon, 修改, SHELL32.dll, 134
@@ -327,7 +333,53 @@ LangNameMenuHandler(ItemName, ItemPos, MenuName) {
 }
 CodeNameMenuHandler(ItemName, ItemPos, MenuName) {
     Gui, Gui:Default
-    if (ItemName == "刷新") {
+    if (MenuName == "CodeNameMenu") {
+        if (ItemName == "刷新") {
+            Gui, ListView, LangNameLV
+            rowNum := LV_GetNext(0, "Focused")
+            if (!rowNum)
+                return
+            LV_GetText(langId, rowNum, 1)
+            LV_GetText(langName, rowNum, 2)
+            Gui, ListView, CodeNameLV
+            LV_Delete()
+            FillCodeName(langId, langName, "name")
+            GuiControl,, CodeNameEdit
+            GuiControl,, CodeDescEdit
+            GuiControl,, CodeContentEdit
+            GuiControl, Hide, GuiSaveButton
+        } else if (ItemName == "新增") {
+            GuiControl,, CodeNameEdit
+            GuiControl,, CodeDescEdit
+            GuiControl,, CodeContentEdit
+            GuiControl, Show, GuiSaveButton
+            GuiControl, Focus, CodeNameEdit
+            CodeOperateType := "add"
+            SB_SetText("  新增 " GuiSelectLangName "->?", 4)
+        } else if (ItemName == "修改") {
+            GuiControl, Show, GuiSaveButton
+            GuiControl, Focus, CodeNameEdit
+            CodeOperateType := "edit"
+            SB_SetText("  修改 " GuiSelectLangName "->" GuiSelectCodeName, 4)
+        } else if (ItemName == "删除") {
+            Gui, ListView, CodeNameLV
+            rowNum := LV_GetNext(0, "Focused")
+            if (!rowNum)
+                return
+            LV_GetText(codeId, rowNum, 1)
+            LV_GetText(codeName, rowNum, 2)
+            MsgBox, 1, 删除, % "是否删除[" codeName "]？"
+            IfMsgBox OK
+            {
+                DBCodeDel(codeId)
+                LV_Delete(rowNum)
+                GuiControl,, CodeNameEdit
+                GuiControl,, CodeDescEdit
+                GuiControl,, CodeContentEdit
+                SB_SetText("  ", 4)
+            }
+        }
+    } else if (MenuName == "CodeNameMenuSub") {
         Gui, ListView, LangNameLV
         rowNum := LV_GetNext(0, "Focused")
         if (!rowNum)
@@ -336,41 +388,19 @@ CodeNameMenuHandler(ItemName, ItemPos, MenuName) {
         LV_GetText(langName, rowNum, 2)
         Gui, ListView, CodeNameLV
         LV_Delete()
-        FillCodeName(langId, langName)
+        if (ItemName == "名称") {
+            FillCodeName(langId, langName, "name")
+        } else if (ItemName == "名称(降序)") {
+            FillCodeName(langId, langName, "name desc")
+        } else if (ItemName == "时间") {
+            FillCodeName(langId, langName, "datetime")
+        } else if (ItemName == "时间(降序)") {
+            FillCodeName(langId, langName, "datetime desc")
+        }
         GuiControl,, CodeNameEdit
         GuiControl,, CodeDescEdit
         GuiControl,, CodeContentEdit
         GuiControl, Hide, GuiSaveButton
-    } else if (ItemName == "新增") {
-        GuiControl,, CodeNameEdit
-        GuiControl,, CodeDescEdit
-        GuiControl,, CodeContentEdit
-        GuiControl, Show, GuiSaveButton
-        GuiControl, Focus, CodeNameEdit
-        CodeOperateType := "add"
-        SB_SetText("  新增 " GuiSelectLangName "->?", 4)
-    } else if (ItemName == "修改") {
-        GuiControl, Show, GuiSaveButton
-        GuiControl, Focus, CodeNameEdit
-        CodeOperateType := "edit"
-        SB_SetText("  修改 " GuiSelectLangName "->" GuiSelectCodeName, 4)
-    } else if (ItemName == "删除") {
-        Gui, ListView, CodeNameLV
-        rowNum := LV_GetNext(0, "Focused")
-        if (!rowNum)
-            return
-        LV_GetText(codeId, rowNum, 1)
-        LV_GetText(codeName, rowNum, 2)
-		MsgBox, 1, 删除, % "是否删除[" codeName "]？"
-		IfMsgBox OK
-        {
-            DBCodeDel(codeId)
-            LV_Delete(rowNum)
-            GuiControl,, CodeNameEdit
-            GuiControl,, CodeDescEdit
-            GuiControl,, CodeContentEdit
-            SB_SetText("  ", 4)
-        }
     }
 }
 ;========================= 构建界面-菜单 =========================
@@ -710,8 +740,8 @@ FillLangName() {
     }
     SB_SetText("共计" langs.Length() "种语言", 2)
 }
-FillCodeName(langId, langName) {
-    codes := DBCodeFind(langId)
+FillCodeName(langId, langName, sortStr) {
+    codes := DBCodeFind(langId, sortStr)
     Gui, Gui:Default
     Gui, ListView, CodeNameLV
     LV_Delete()
@@ -750,6 +780,8 @@ DBCodeNew(codeObj) {
     resultSet := QueryOne("select ifnull(max(id) + 1, 1) as codeId from code")
     codeId := resultSet["codeId"]
     codeObj.id := codeId
+    FormatTime, datetime, , yyyy-MM-dd HH:mm:ss
+    codeObj.datetime := datetime
     currentDB.Insert(codeObj, "code")
     return codeId
 }
@@ -757,8 +789,11 @@ DBCodeUpdate(codeObj) {
     flag := currentDB.Update(codeObj, "code")
     return flag
 }
-DBCodeFind(langId) {
-    return Query("select id, name, content from code where langId = " langId)
+DBCodeFind(langId, sortStr:="") {
+    sql := "select id, name, content from code where langId = " langId
+    if (sortStr)
+        sql := sql " order by " sortStr
+    return Query(sql)
 }
 DBCodeDetail(codeId) {
     return QueryOne("select * from code where id = " codeId)

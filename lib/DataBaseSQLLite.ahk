@@ -184,8 +184,10 @@ class DataBaseSQLLite extends DBA.DataBase
 			{
 				for col, val in record
 				{
-					if (!columns.HasKey(col))
-						throw Exception("Irregular params: Column not found: [" col "] in`nTable Columns:" this.printKeys(columns))
+					if (!columns.HasKey(col)) {
+						continue
+						;throw Exception("Irregular params: Column not found: [" col "] in`nTable Columns:" this.printKeys(columns))
+					}
 					fieldType := "auto"
 					if(types.HasKey(columns[col]))
 						fieldType := types[columns[col]]
@@ -254,13 +256,13 @@ class DataBaseSQLLite extends DBA.DataBase
 			
 		try {
 			for col, val in record {
-				if (!columns.HasKey(col))
-					throw Exception("Irregular params: Column not found: [" col "] in`nTable Columns:" this.printKeys(columns))
+				if (!columns.HasKey(col)) {
+					continue
+					;throw Exception("Irregular params: Column not found: [" col "] in`nTable Columns:" this.printKeys(columns))
+				}
 				fieldType := "auto"
 				if (types.HasKey(columns[col]))
 					fieldType := types[columns[col]]
-				
-				print(columns[col] " " val " " fieldType)
 				ret := SQLite_bind(query, columns[col], val, fieldType)
 			}
 			SQLite_Step(query)
