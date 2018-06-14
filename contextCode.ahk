@@ -1,14 +1,13 @@
 ﻿;说明
 ;  上下文代码片段助手；监听//之间输入的命令
+;  Win+/ 猜测当前代码语言, 并增加注释
 ;配置
 ;  1.托盘菜单->代码片段管理->进入界面增加删除修改代码片段
 ;  2.needBackClip是否需要备份剪切板
 ;注意
 ;  1.console界面会将换行符表示成执行命令, 因此一般用于console中执行的代码片段最好是一行
 ;TODO
-;  1.判断当前是否是可输入界面
-;  2./和对应的全角、输入效果一致，目前未找到解决方法
-;  3.对于无法匹配情况，弹出下拉选项框由用户主动选择
+;  1.对于无法匹配情况，弹出下拉选项框由用户主动选择
 ;========================= 环境配置 =========================
 #Persistent
 #NoEnv
@@ -49,6 +48,8 @@ global needBackClip := false
 global curProcessName :=
 global curId :=
 global curTitle :=
+
+global langAnnotateMap := Object()
 DBConnect()
 MenuTray()
 LoadLangCodes()
@@ -61,12 +62,8 @@ LoadLangCodes()
     userInput := RegExReplace(Trim(userInput), "\s+", " ")      ;去除首位空格, 将字符串内多个连续空格替换为单个空格
     if (!userInput)
         return
-
-    ;根据当前窗口title、编辑文件后缀、进程、ahk_id，判断当前所处的语言环境，提供更好的代码帮助
-    WinGet, curProcessName, ProcessName, A
-    WinGet, curId, ID, A
-    WinGetTitle, curTitle, ahk_id %curId%
-
+    
+    FetchWinInfo()
     if (SubStr(userInput, 1, 4) == "lang") {
         ParseLangCmd()
     } else {
@@ -77,6 +74,10 @@ LoadLangCodes()
         ParseCodeLineCmd()           ;代码片段光标\行内参数处理
         SimulateSendKey()            ;模拟按键
     }
+return
+#/::
+    FetchWinInfo()
+    AnnotateCode()
 return
 ;========================= 输入命令检测 =========================
 
@@ -423,7 +424,22 @@ LoadLangCodes() {
         }
         langCodesFull[lang.name] := oneLangCodes
     }
+    
+    langAnnotateMap := Object()
+    langAnnotateMap["java"] := "//"
+    langAnnotateMap["bat"] := "::"
+    langAnnotateMap["ahk"] := ";"
+    langAnnotateMap["vbs"] := "'"
+    langAnnotateMap["py"] := "#"
 }
+
+FetchWinInfo() {
+    ;根据当前窗口title、编辑文件后缀、进程、ahk_id，判断当前所处的语言环境，提供更好的代码帮助
+    WinGet, curProcessName, ProcessName, A
+    WinGet, curId, ID, A
+    WinGetTitle, curTitle, ahk_id %curId%
+}
+
 ParseLangCmd() {
     userInputArray := StrSplit(userInput, A_Space)
     userInputCmd := userInputArray[2]
@@ -432,7 +448,7 @@ ParseLangCmd() {
             settingLang =
             tip("清除上下文语言环境 !")
         } else if (userInputCmd = "guess") {
-            searchLang := GuessLang(curProcessName, curTitle)
+            searchLang := GuessLang()
             if (searchLang)
                 tip("猜测当前语言环境为[" searchLang "] !")
             else
@@ -441,7 +457,8 @@ ParseLangCmd() {
             settingLang := userInputCmd
             tip("设置上下文语言环境为[" userInputCmd "] !") ;字符串之间以空格隔开就是字符串连接操作
         } else {
-            tip("仓库中未配置[" userInputCmd "]语言代码片段 !")
+            settingLang := userInputCmd
+            tip("配置成功，但仓库中未配置[" userInputCmd "]语言代码片段 !")
         }
     } else {
         if (settingLang)
@@ -486,7 +503,7 @@ ParseUserInput() {
     }
     ;尝试自动检测环境lang
     if (!searchLang)
-        searchLang := GuessLang(curProcessName, curTitle)
+        searchLang := GuessLang()
 }
 
 MatchCode() {
@@ -501,11 +518,13 @@ MatchCode() {
     ;指定lang分类下查询
     if (searchLang) {
         singleLangCodes := langCodesFull[searchLang]
-        searchCodeObj := singleLangCodes[searchKey]
-        if (searchCodeObj) {
-            snippetMatchFlag := true
-            snippetMatchLang := searchLang
-            searchCode := searchCodeObj["content"]
+        if (singleLangCodes) {
+            searchCodeObj := singleLangCodes[searchKey]
+            if (searchCodeObj) {
+                snippetMatchFlag := true
+                snippetMatchLang := searchLang
+                searchCode := searchCodeObj["content"]
+            }
         }
     }
     ;common分类下查询
@@ -677,6 +696,34 @@ SimulateSendKey() {
     }
 }
 
+AnnotateCode() {
+    clipboard =
+    SendInput, ^c
+    ClipWait, 1
+    code := Clipboard
+    RegExMatch(code, "^\s+", codePrefixBlankStr)
+    langAnnotate := GetLangAnnotate()
+    codePrefixBlankStr2 := codePrefixBlankStr langAnnotate
+    code2 := ""
+    Loop, parse, code, `n
+    {
+        codeLine := RegExReplace(A_LoopField, "^" codePrefixBlankStr, codePrefixBlankStr2)
+        code2 := code2 codeLine
+    }
+    Clipboard := code2
+    SendInput, ^v
+}
+
+GetLangAnnotate() {
+    lang := (settingLang ? settingLang : GuessLang())
+    if (!lang)
+        lang := "java"
+    langAnnotate := langAnnotateMap[lang]
+    if (!langAnnotate)
+        langAnnotate := "//"
+    return langAnnotate
+}
+
 HasElement(array, searchElement) {
 	for index, element in array {
 		if (element == searchElement)
@@ -684,7 +731,7 @@ HasElement(array, searchElement) {
 	}
 	return false
 }
-GuessLang(curProcessName, curTitle) {
+GuessLang() {
     if (curProcessName == "cmd.exe") {
         searchLang = bat
         searchLangMode = auto
