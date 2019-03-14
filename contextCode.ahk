@@ -750,23 +750,22 @@ GuessLang() {
     }
 	return searchLang
 }
-
 GetWeather() {
-    ;接口目前不可用
-    return ""
-    weaid = 36
-    appkey = 27580
-    sign = 07af95bb4eb5bce5f8c62ef5d760eff7
+    ;天气接口提供 https://www.seniverse.com/
+    key = qyqwrrtwehqfvren
+    location = shanghai
     FormatTime, dateStr, , yyyy-MM-dd
     jsonFilePath = %A_Temp%\weather.%dateStr%.json
     IfNotExist, %jsonFilePath%
-        URLDownloadToFile http://api.k780.com/?app=weather.future&weaid=%weaid%&&appkey=%appkey%&sign=%sign%&format=json, %jsonFilePath%
+        URLDownloadToFile, https://api.seniverse.com/v3/weather/now.json?key=%key%&location=%location%&language=en&unit=c, %jsonFilePath%
+    
     jsonFile := FileOpen(jsonFilePath, "r")
     jsonStr := JSON.Load(jsonFile.Read())
     jsonFile.Close()
-    todayWeather := jsonStr.result[1]
-    todayWeatherStr := todayWeather.cityno " " todayWeather.weather " " todayWeather.temperature " " todayWeather.wind
-    return todayWeatherStr
+    weatherNow := jsonStr.results[1]["now"]
+    weatherLocation := jsonStr.results[1]["location"]
+    weatherStr := weatherLocation.name " " weatherNow.text " " weatherNow.temperature "℃"
+    return %weatherStr%
 }
 GetFace() {
     _faces := ["(""▔□▔)", "(︶︿︶)=凸", "(ΘｏΘ)", "(=￣ω￣=)", "Σ( ° △ °|||)︴", "(￣▽￣)", "(づ￣3￣)づ", "(~￣▽￣)~", "(^>﹏^<)", "●ω●", "*^_^*", "T_T", "-_-#", "^ω^", "←_←", "→_→", "555~", "≥﹏≤", "(>_<)", "⊙ω⊙", "(>﹏<)", "(╯3╰)", "(°ο°)", "●﹏●", "●︿●", "(=^.^=)", "(=^ω^=)", "hehe~"]
