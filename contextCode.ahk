@@ -8,6 +8,7 @@
 ;  1.console界面会将换行符表示成执行命令, 因此一般用于console中执行的代码片段最好是一行
 ;TODO
 ;  1.对于无法匹配情况，弹出下拉选项框由用户主动选择
+;  2.bug描述: needBackClip设置true, /syso/ /trycatch/失效
 ;========================= 环境配置 =========================
 #Persistent
 #NoEnv
@@ -740,6 +741,9 @@ GuessLang() {
         searchLangMode = auto
     } else if (curProcessName == "chrome.exe") {
         searchLang = js
+        searchLangMode = auto
+    } else if (curProcessName == "idea64.exe") {
+        searchLang = java
         searchLangMode = auto
     } else {
         FoundPos := RegExMatch(curTitle, "U)\..* ", postfix)
