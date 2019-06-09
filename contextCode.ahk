@@ -9,6 +9,7 @@
 ;TODO
 ;  1.对于无法匹配情况，弹出下拉选项框由用户主动选择
 ;  2.bug描述: needBackClip设置true, /syso/ /trycatch/失效
+;  3.粘贴后的代码片段会多出一个换行符，考虑是否去除
 ;========================= 环境配置 =========================
 #Persistent
 #NoEnv
@@ -60,16 +61,17 @@ LoadLangCodes()
 ;========================= 输入命令检测 =========================
 ~/::
     Input, userInput, V T10, /,
+    if (!userInput || InStr(userInput, "`n", true))             ;如输入文本中包含换行, 则不是有效命令
+        return
     userInput := RegExReplace(Trim(userInput), "\s+", " ")      ;去除首位空格, 将字符串内多个连续空格替换为单个空格
     if (!userInput)
         return
-    
     FetchWinInfo()
     if (SubStr(userInput, 1, 4) == "lang") {
         ParseLangCmd()
     } else {
-        ParseUserInput()             ;语言环境设置
-        if (!MatchCode())            ;匹配code
+        ParseUserInput()             ;从用户输入解析出[语言类型、代码key]\[内部指令、指令参数]
+        if (!MatchCode())            ;无匹配代码片段时退出
             return
         CalcCodeIndent()             ;计算行缩进空格
         ParseCodeLineCmd()           ;代码片段光标\行内参数处理
