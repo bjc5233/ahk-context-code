@@ -328,7 +328,7 @@ SQLite_Bind(query, idx, val, type = "auto") {
          type := "text"
    }
    
-   gDBA_ArchLogger.Log(A_ThisFunc ": Binding value as: " type)
+   ;gDBA_ArchLogger.Log(A_ThisFunc ": Binding value as: " type)
    
 
    if (type = "int" || type = "Integer")

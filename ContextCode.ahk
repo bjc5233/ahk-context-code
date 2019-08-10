@@ -7,8 +7,8 @@
 ;注意
 ;  1.console界面会将换行符表示成执行命令, 因此一般用于console中执行的代码片段最好是一行
 ;========================= 环境配置 =========================
-#Persistent
 #NoEnv
+#Persistent
 #SingleInstance, Force
 DetectHiddenWindows, On
 SetTitleMatchMode, 2
@@ -24,7 +24,7 @@ CoordMode, Menu
 
 ;========================= 变量配置 =========================
 global currentDB := Object()
-global langsFull := Object()         ;[java, bat, ...]
+global langsFull := Object()         ;[java, bat, git, ...]
 global langCodesFull := Object()     ;<langName, <codeName, codeObj>>
 global settingLang :=
 global userInput :=
@@ -51,6 +51,7 @@ global langAnnotateMap := Object()
 DBConnect()
 MenuTray()
 LoadLangCodes()
+print("contextCode is working")
 ;========================= 变量配置 =========================
 
 
@@ -430,6 +431,7 @@ LoadLangCodes() {
     langAnnotateMap["ahk"] := ";"
     langAnnotateMap["vbs"] := "'"
     langAnnotateMap["py"] := "#"
+    langAnnotateMap["js"] := "//"
 }
 
 FetchWinInfo() {
@@ -743,6 +745,9 @@ GuessLang() {
     } else if (curProcessName == "idea64.exe") {
         searchLang = java
         searchLangMode = auto
+    }  else if (curProcessName == "SciTE.exe") {
+        searchLang = ahk
+        searchLangMode = auto
     } else {
         FoundPos := RegExMatch(curTitle, "U)\..* ", postfix)
         StringReplace, postfix, postfix, %A_Space%, , All
@@ -854,7 +859,7 @@ DBCodeDel(codeId) {
 
 ;========================= DB-Base =========================
 DBConnect() {
-	connectionString := A_ScriptDir "\contextCode.db"
+	connectionString := A_ScriptDir "\ContextCode.db"
 	try {
 		currentDB := DBA.DataBaseFactory.OpenDataBase("SQLite", connectionString)
 	} catch e

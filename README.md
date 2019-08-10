@@ -17,6 +17,34 @@
 
 
 
+
+### 演示
+仓库中已定义的代码片段[...\snippets\java\for.java]  
+注意标识$pos$的位置
+
+```java
+for (Integer i : list) {
+    System.out.println($pos$);
+}
+
+for (int i = 0; i < list.size(); i++) {
+    System.out.println(list.get(i));
+}
+
+Iterator<Integer> it = list.iterator();
+while (it.hasNext()) {
+    int i = (Integer) it.next();
+    System.out.println(i);
+}
+```
+
+<div align=center><img src="https://github.com/bjc5233/ahk-context-code/raw/master/resources/demo.gif"/></div>
+<div align=center><img src="https://github.com/bjc5233/ahk-context-code/raw/master/resources/demo2.gif"/></div>
+<div align=center><img src="https://github.com/bjc5233/ahk-context-code/raw/master/resources/demo3.png"/></div>
+
+
+
+
 ### 语言查询优先级
 1. 用户输入命令中显式指定  /java for/
 2. 用户输入命令lang来配置当前语言环境
@@ -45,38 +73,13 @@
 
 
 
+
 ### TODO
 1. 对于无法匹配情况，弹出下拉选项框由用户主动选择
 2. bug描述: needBackClip设置true, /syso/ /trycatch/失效
 3. 粘贴后的代码片段会多出一个换行符，考虑是否去除
 4. 每周五展示历史输入命令排行榜[前二十]；创建内部指令统计当前命令hitting次数排行榜
-
-
-
-### 演示
-仓库中已定义的代码片段[...\snippets\java\for.java]  
-注意标识$pos$的位置
-
-```java
-for (Integer i : list) {
-    System.out.println($pos$);
-}
-
-for (int i = 0; i < list.size(); i++) {
-    System.out.println(list.get(i));
-}
-
-Iterator<Integer> it = list.iterator();
-while (it.hasNext()) {
-    int i = (Integer) it.next();
-    System.out.println(i);
-}
-```
-
-<div align=center><img src="https://github.com/bjc5233/ahk-context-code/raw/master/resources/demo.gif"/></div>
-<div align=center><img src="https://github.com/bjc5233/ahk-context-code/raw/master/resources/demo2.gif"/></div>
-<div align=center><img src="https://github.com/bjc5233/ahk-context-code/raw/master/resources/demo3.png"/></div>
-
+5. 代码片段排序自定义[上移下移]
 
 
 ### 其他
