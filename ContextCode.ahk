@@ -47,6 +47,7 @@ global curProcessName :=
 global curId :=
 global curTitle :=
 global langAnnotateMap := Object()
+global isConextCodeStateOn := true
 
 OnExit("MenuTrayExit")
 DBConnect()
@@ -65,12 +66,15 @@ print("contextCode is working")
     userInput := RegExReplace(Trim(userInput), "\s+", " ")      ;去除首位空格, 将字符串内多个连续空格替换为单个空格
     if (!userInput)
         return
+    
     FetchWinInfo()
-    if (SubStr(userInput, 1, 4) == "lang") {
-        ParseLangCmd()
-    } else if (userInput == "-manager" || userInput == "-gui") {
-        Gui()
+    if (RegExMatch(userInput, "^-")) {  ;以-开头的输入是内部指令
+        ExecBuildInCmd()
     } else {
+        if (!isConextCodeStateOn) {
+            tip("代码助手休息去了 !")
+            return
+        }
         ParseUserInput()             ;从用户输入解析出[语言类型、代码key]\[内部指令、指令参数]
         if (!MatchCode())            ;无匹配代码片段时退出
             return
@@ -79,9 +83,22 @@ print("contextCode is working")
         SimulateSendKey()            ;模拟按键
     }
 return
-#/::
+
+#/::    ;Win+/ 选中文本则将其注释; 无选中则循环开启\关闭代码助手
     FetchWinInfo()
-    AnnotateCode()
+    if (needBackClip)
+        savedClip := ClipboardAll   ;备份剪贴板数据
+    clipboard :=
+    SendInput, ^c
+    ClipWait, 0.1
+    code := Clipboard
+    if (StrLen(code)) {
+        AnnotateCode(code)
+    } else {
+        ConextCodeStateToggle(2)
+    }
+    if (needBackClip)
+        Clipboard := savedClip ; 恢复剪贴板
 return
 ;========================= 输入命令检测 =========================
 
@@ -440,12 +457,41 @@ LoadLangCodes() {
     langAnnotateMap["js"] := "//"
 }
 
-FetchWinInfo() {
-    ;根据当前窗口title、编辑文件后缀、进程、ahk_id，判断当前所处的语言环境，提供更好的代码帮助
+FetchWinInfo() {    ;根据当前窗口标题(解析文件后缀)、进程名、ahk_id，判断语言环境，提供更好的代码帮助
     WinGet, curProcessName, ProcessName, A
     WinGet, curId, ID, A
     WinGetTitle, curTitle, ahk_id %curId%
 }
+
+ExecBuildInCmd() {
+    codeNeedBackKeyCount := CalcBackKeyCount()
+    SendInput, {backspace %codeNeedBackKeyCount%}   ;清除输入的指令
+    if (RegExMatch(userInput, "^-lang")) {
+        ParseLangCmd()
+    } else if (userInput == "-gui") {
+        Gui()
+    } else if (userInput == "-on") {
+        ConextCodeStateToggle(1)
+    } else if (userInput == "-off") {
+        ConextCodeStateToggle(0)
+    }
+}
+
+ConextCodeStateToggle(actionType) {
+    if (actionType == 0) {
+        isConextCodeStateOn := false
+        tip("代码助手休息去了 !")
+    } else if (actionType == 1) {
+        isConextCodeStateOn := true
+        tip("代码助手开始工作 !")
+    } else if (actionType == 2) {
+        if (isConextCodeStateOn)
+            ConextCodeStateToggle(0)
+        else
+            ConextCodeStateToggle(1)
+    }
+}
+
 
 ParseLangCmd() {
     userInputArray := StrSplit(userInput, A_Space)
@@ -664,10 +710,10 @@ ParseCodeLineCmd() {
 }
 
 SimulateSendKey() {
-    codeNeedBackKeyCount := StrLen(userInput) + 2    ;//符号也需要计算在退格值内，自加2
     if (needBackClip)
         savedClip := ClipboardAll   ;备份剪贴板数据
-
+    
+    codeNeedBackKeyCount := CalcBackKeyCount()
     WinGet, curId2, ID, A
     isWinChanged := (curId == curId2 ? false : true)    ;窗口发生变法时，在新窗口中不需要退格处理
     if (isWinChanged) {
@@ -698,19 +744,19 @@ SimulateSendKey() {
     }
     
     if (needBackClip) {
-        Clipboard := savedClip ; 恢复剪贴板为原来的内容
+        Clipboard := savedClip ; 恢复剪贴板
         savedClip :=           ; 释放内存
     }
 }
 
-AnnotateCode() {
-    clipboard =
-    SendInput, ^c
-    ClipWait, 1
-    code := Clipboard
+CalcBackKeyCount() {
+    return StrLen(userInput) + 2    ;边界符号//也需要计算在退格值内，因此自加2
+}
+
+AnnotateCode(code) {
     RegExMatch(code, "^\s+", codePrefixBlankStr)
     langAnnotate := GetLangAnnotate()
-    codePrefixBlankStr2 := codePrefixBlankStr langAnnotate
+    codePrefixBlankStr2 := codePrefixBlankStr langAnnotate A_Space
     code2 := ""
     Loop, parse, code, `n
     {
