@@ -1,76 +1,64 @@
 # ahk-context-snippet
-> 一般代码编辑器都自带代码助手，输入指定短语，替换称整段代码。但规则各不相同，因此实现一个系统级别的代码片段助手。
+> 代码片段助手。一般代码编辑器都带代码助手，但规则各不相同，也需要独立配置，因此实现一个公共的代码片段助手，可以猜测上下文语言环境、对代码片段进行整体缩进。
 
 
 ### 使用
-1. 安装autoHotKey软件
-2. 托盘菜单->代码片段管理->进入界面增加删除修改代码片段
-3. 修改[needBackClip]，表示是否需要备份剪切板数据
-3. 双击contextCmd.ahk执行
-4. 在任意可输入的地方(如记事本)输入，  /for/，代码片段会被自动替换
+1. 安装AutoHotKey软件
+2. 双击contextCmd.ahk执行
+4. 在任意可编辑界面(如记事本)输入 /for/  ，会自动替换会已定义的代码片段
+4. 托盘右键->代码片段管理->对代码片段进行增删改查操作
+5. 基本命令
 
-### 特点
-1. 任意可输入界面。终端、记事本、notepad++、sublime、chromeConsole、idea...
-2. 手动输入的命令在替换成代码片段的同时自动清除
-3. 根据光标所在行，行首空格数量，自动对代码片段整体缩进
-4. 当前是cmd窗口, 不显示指定语言，则设置lang为bat；当前是mintty窗口，不显示指定语言，则设置lang为git
-
+    |命令|作用|
+    |-|-|
+    | /snippetName/ |查询代码片段并替换|
+    | /lang java/ |配置当前语言环境为java|
+    | /lang/ |查看当前语言环境|
+    | /lang guess/ |猜测当前窗口语言环境|
+    | /lang null/    /lang none/ |清除上下文语言环境|
+    | /-manage/   /-gui/ |进入GUI界面, 进行代码片段管理|
 
 
 
 ### 演示
-仓库中已定义的代码片段[...\snippets\java\for.java]  
+仓库中已定义的代码片段[java - for]  
 注意标识$pos$的位置
-
-```java
-for (Integer i : list) {
-    System.out.println($pos$);
-}
-
-for (int i = 0; i < list.size(); i++) {
-    System.out.println(list.get(i));
-}
-
-Iterator<Integer> it = list.iterator();
-while (it.hasNext()) {
-    int i = (Integer) it.next();
-    System.out.println(i);
-}
-```
-
-<div align=center><img src="https://github.com/bjc5233/ahk-context-code/raw/master/resources/demo.gif"/></div>
-<div align=center><img src="https://github.com/bjc5233/ahk-context-code/raw/master/resources/demo2.gif"/></div>
-<div align=center><img src="https://github.com/bjc5233/ahk-context-code/raw/master/resources/demo3.png"/></div>
+<div align=center><img height=60% width=60% src="https://github.com/bjc5233/ahk-context-code/raw/master/resources/demo.gif"/></div>
+<div align=center><img height=60% width=60% src="https://github.com/bjc5233/ahk-context-code/raw/master/resources/demo2.gif"/></div>
+<div align=center><img height=60% width=60% src="https://github.com/bjc5233/ahk-context-code/raw/master/resources/demo3.png"/></div>
 
 
 
 
 ### 语言查询优先级
 1. 用户输入命令中显式指定  /java for/
-2. 用户输入命令lang来配置当前语言环境
+2. 根据lang命令来配置当前语言环境
 3. 根据上下文猜测语言环境，优先查询该语言分类下的代码片段
+
+    |环境|猜测的语言|
+    |-|-|
+    |cmd.exe|bat|
+    |mintty.exe|git|
+    |chrome.exe|js|
+    |idea64.exe|java|
+    |SciTE.exe|ahk|
+    |从窗口标题解析|随缘|
 4. 查询common分类下的代码片段
 
-```
-/lang/ 查看当前语言环境
-/lang null/ 清除当前语言环境
-/lang none/ 清除当前语言环境
-/lang java/ 配置当前语言环境为java
-/lang guess/ 猜测当前语言环境
-```
+
 
 
 
 
 ### 代码片段中可用变量
-1. $datetime$ --> 替换成当前日期时间，格式为[yyyy-MM-dd HH:mm:ss]
-2. $face$ --> 替换随机字符表情
-3. $weather$ --> 替换shanghai今日天气，格式为[shanghai 小雨 10℃/7℃ 东风]
-4. $pos$ --> 替换之后，光标自动定位到此处
-5. $param$ --> 输入/java for j/会将j作为替换所有$param$的地方
-6. $clip$ --> 替换成当前剪切板内容
-
-
+|变量名|含义|
+|-|-|
+|$datetime$|替换成当前日期时间，格式为[yyyy-MM-dd HH:mm:ss]|
+|$face$|替换随机字符表情|
+|$weather$|替换shanghai今日天气，格式为[shanghai 小雨 10℃/7℃ 东风]|
+|$pos$|替换之后，光标自动定位到此处|
+|$param$|输入/java for j/会将j作为替换所有$param$的地方|
+|$clip$|替换成当前剪切板内容|
 
 
 
@@ -80,6 +68,7 @@ while (it.hasNext()) {
 3. 粘贴后的代码片段会多出一个换行符，考虑是否去除
 4. 每周五展示历史输入命令排行榜[前二十]；创建内部指令统计当前命令hitting次数排行榜
 5. 代码片段排序自定义[上移下移]
+6. "C:\path\AHK\ahkLearn\temp\Autohotkey-Scripts\Scriptlet Library\Scriptlet Library.ahk"
 
 
 ### 其他

@@ -46,8 +46,9 @@ global needBackClip := false
 global curProcessName :=
 global curId :=
 global curTitle :=
-
 global langAnnotateMap := Object()
+
+OnExit("MenuTrayExit")
 DBConnect()
 MenuTray()
 LoadLangCodes()
@@ -58,7 +59,8 @@ print("contextCode is working")
 ;========================= 输入命令检测 =========================
 ~/::
     Input, userInput, V T10, /,
-    if (!userInput || InStr(userInput, "`n", true))             ;如输入文本中包含换行, 则不是有效命令
+    ;如果ErrorLevel值必须以EndKey开头; 如果输入文本中包含换行, 则不是有效命令
+    if (!userInput || !RegExMatch(ErrorLevel, "^EndKey") || InStr(userInput, "`n", true))
         return
     userInput := RegExReplace(Trim(userInput), "\s+", " ")      ;去除首位空格, 将字符串内多个连续空格替换为单个空格
     if (!userInput)
@@ -66,6 +68,8 @@ print("contextCode is working")
     FetchWinInfo()
     if (SubStr(userInput, 1, 4) == "lang") {
         ParseLangCmd()
+    } else if (userInput == "-manager" || userInput == "-gui") {
+        Gui()
     } else {
         ParseUserInput()             ;从用户输入解析出[语言类型、代码key]\[内部指令、指令参数]
         if (!MatchCode())            ;无匹配代码片段时退出
@@ -98,7 +102,7 @@ global GuiSelectLangId :=
 global GuiSelectLangName :=
 global GuiSelectCodeId :=
 global GuiSelectCodeName :=
-Gui(ItemName, ItemPos, MenuName){
+Gui(ItemName:="", ItemPos:="", MenuName:=""){
     Gui, Gui:New
     Gui, Gui:Font, s10, Microsoft YaHei
     Gui, Gui:Add, ListView, w200 r26 Readonly AltSubmit cFFFFFF Background142F43 HScroll -Hdr -Multi HwndLangNameLVHwnd vLangNameLV gGuiLangNameLVHandler, id|name
@@ -297,8 +301,10 @@ MenuTray() {
 MenuTrayReload(ItemName, ItemPos, MenuName) {
     Reload    
 }
-MenuTrayExit(ItemName, ItemPos, MenuName) {
-    currentDB.Close()
+MenuTrayExit(ItemName:="", ItemPos:="", MenuName:="") {
+    if (!CurrentDB.IsValid()) {
+        currentDB.Close()
+    }
     ExitApp
 }
 LangNameMenuHandler(ItemName, ItemPos, MenuName) {
