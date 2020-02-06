@@ -19,6 +19,7 @@
     | /-gui/|进入GUI界面, 进行代码片段管理|
     | /-on/|代码片段助手开启|
     | /-off/|代码片段助手关闭(书写路径时容易误触发, 可以先关闭)|
+    | /-reload/|重启脚本|
     | Win + /|当前有选中文本, 则进行注释;<br>当前未选中文本, 则循环开启\关闭代码助手|
 
 
@@ -73,6 +74,7 @@
 5. 代码片段排序自定义[上移下移]
 6. "C:\path\AHK\ahkLearn\temp\Autohotkey-Scripts\Scriptlet Library\Scriptlet Library.ahk"
 7. win+/进行代码注释时，进行toggle注释处理
+8. ahk匹配执行速度一般，后期考虑使用py实现
 
 
 ### 其他

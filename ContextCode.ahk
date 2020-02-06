@@ -1,5 +1,5 @@
 ﻿;说明
-;  上下文代码片段助手；监听//之间输入的命令
+;  效率工具，上下文代码片段助手；监听//之间输入的命令
 ;  Win+/ 猜测当前代码语言, 并增加注释
 ;配置
 ;  1.托盘菜单->代码片段管理->进入界面增加删除修改代码片段
@@ -42,13 +42,15 @@ global codeNeedUpKeyCount :=
 global codeNeedRightKeyCount :=
 global codeLinePosIndex :=
 
-global needBackClip := false
+global needBackClip := true
 global curProcessName :=
 global curId :=
 global curTitle :=
 global langAnnotateMap := Object()
 global isConextCodeStateOn := true
 
+
+printClear()
 OnExit("MenuTrayExit")
 DBConnect()
 MenuTray()
@@ -315,13 +317,12 @@ MenuTray() {
     Menu, CodeNameMenu, Add, 删除, CodeNameMenuHandler
     Menu, CodeNameMenu, Icon, 删除, SHELL32.dll, 132
 }
-MenuTrayReload(ItemName, ItemPos, MenuName) {
+MenuTrayReload(ItemName:="", ItemPos:="", MenuName:="") {
     Reload    
 }
 MenuTrayExit(ItemName:="", ItemPos:="", MenuName:="") {
-    if (!CurrentDB.IsValid()) {
+    if (CurrentDB.IsValid())
         currentDB.Close()
-    }
     ExitApp
 }
 LangNameMenuHandler(ItemName, ItemPos, MenuName) {
@@ -455,6 +456,7 @@ LoadLangCodes() {
     langAnnotateMap["vbs"] := "'"
     langAnnotateMap["py"] := "#"
     langAnnotateMap["js"] := "//"
+    langAnnotateMap["sh"] := "#"
 }
 
 FetchWinInfo() {    ;根据当前窗口标题(解析文件后缀)、进程名、ahk_id，判断语言环境，提供更好的代码帮助
@@ -474,6 +476,8 @@ ExecBuildInCmd() {
         ConextCodeStateToggle(1)
     } else if (userInput == "-off") {
         ConextCodeStateToggle(0)
+    } else if (userInput == "-reload") {
+        MenuTrayReload()
     }
 }
 
