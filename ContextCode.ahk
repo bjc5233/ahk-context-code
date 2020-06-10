@@ -42,7 +42,7 @@ global codeNeedUpKeyCount :=
 global codeNeedRightKeyCount :=
 global codeLinePosIndex :=
 
-global needBackClip := true
+global needBackClip := false ;备份目前会出现bug 推测是sendInput还未执行完毕  剪切板就被恢复  导致粘贴数据不对
 global curProcessName :=
 global curId :=
 global curTitle :=
@@ -574,7 +574,7 @@ MatchCode() {
     snippetMatchLang :=
     ;指定lang分类下查询
     if (searchLang) {
-        singleLangCodes := langCodesFull[searchLang]
+        singleLangCodes := langCodesFull[searchLang]    
         if (singleLangCodes) {
             searchCodeObj := singleLangCodes[searchKey]
             if (searchCodeObj) {
@@ -704,7 +704,10 @@ ParseCodeLineCmd() {
             else
                 codeVar := codeVar codePrefixBlankStr codeLine "`r"
         } else {
-            codeVar := codeVar codePrefixBlankStr codeLine "`r`n"
+            if (A_Index == 1)   ;如果有前置空格，需要注意第一行不需要再加空格
+                codeVar := codeVar codeLine "`r`n"
+            else
+                codeVar := codeVar codePrefixBlankStr codeLine "`r`n"
         }
     }
     if (codeLinePosIndex) {
@@ -744,6 +747,7 @@ SimulateSendKey() {
                 SendInput, {backspace %codeNeedBackKeyCount%}^v{up %codeNeedUpKeyCount%}{right %codeNeedRightKeyCount%}
             else
                 SendInput, {backspace %codeNeedBackKeyCount%}^v
+                
         }
     }
     
